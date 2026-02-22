@@ -129,7 +129,7 @@ class OpenTableReservationService {
 
   // 1. Launch browser
   startBrowser() {
-    console.log("→ Starting Chrome with");
+    console.log("→ Starting Chrome");
     try {
       skill("start.js");
       // My local automation profile
