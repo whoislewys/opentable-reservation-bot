@@ -127,11 +127,13 @@ class OpenTableReservationService {
   private restaurantId = 0;
   private correlationId = randomUUID();
 
-  // 1. Launch browser with profile 4
+  // 1. Launch browser
   startBrowser() {
-    console.log("→ Starting Chrome with profile 4…");
+    console.log("→ Starting Chrome with");
     try {
-      skill("start.js", "--profile", "4");
+      skill("start.js");
+      // My local automation profile
+      // skill("start.js", "--profile", "4");
     } catch {
       console.log("  (Chrome may already be running, continuing)");
     }

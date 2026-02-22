@@ -77,7 +77,7 @@ node skills/puppeteer-core/start.js
 # Chrome is now on :9222 with a 1920x1080 virtual display
 
 # In another terminal (or after in the same session):
-pnpm exec tsx main.ts
+source .env && bun main.ts
 ```
 
 **Option B – Use `xvfb-run` yourself**  

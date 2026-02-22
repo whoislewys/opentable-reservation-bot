@@ -16,7 +16,7 @@ vim .env
 2. Install dependencies:
 
 ```bash
-bun install
+pnpm install
 ```
 
 ## Run
