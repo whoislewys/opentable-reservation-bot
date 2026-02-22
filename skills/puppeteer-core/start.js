@@ -12,34 +12,27 @@ const listProfiles = process.argv[2] === "--list-profiles";
 const useProfile = process.argv[2] === "--profile";
 const profileArg = useProfile ? process.argv[3] : null; // optional: number or profile dir name
 
-/** Resolve Chrome/Chromium executable. VPS: set CHROME_PATH or CHROMIUM_PATH if needed. */
+// Resolve Chrome/Chromium executable (VPS-friendly: use CHROME_PATH or CHROMIUM_PATH)
 function getChromePath() {
-	if (process.env["CHROME_PATH"]) return process.env["CHROME_PATH"];
-	if (process.env["CHROMIUM_PATH"]) return process.env["CHROMIUM_PATH"];
-	if (isDarwin) {
-		return "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
-	}
+	const envPath = process.env.CHROME_PATH || process.env.CHROMIUM_PATH;
+	if (envPath) return envPath;
+	if (isDarwin) return "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 	if (isLinux) {
-		const candidates = [
-			"/usr/bin/google-chrome",
-			"/usr/bin/google-chrome-stable",
-			"/usr/bin/chromium",
-			"/usr/bin/chromium-browser",
-		];
-		for (const c of candidates) {
-			if (existsSync(c)) return c;
+		for (const p of ["/usr/bin/google-chrome", "/usr/bin/google-chrome-stable", "/usr/bin/chromium", "/usr/bin/chromium-browser"]) {
+			if (existsSync(p)) return p;
 		}
-		console.error("Chrome/Chromium not found. Install or set CHROME_PATH / CHROMIUM_PATH.");
-		process.exit(1);
+		try {
+			return execSync("which chromium chromium-browser google-chrome 2>/dev/null", { encoding: "utf8" }).trim().split("\n")[0] || null;
+		} catch {
+			return null;
+		}
 	}
-	console.error("Unsupported platform for Chrome");
-	process.exit(1);
+	return null;
 }
 
-// Function to get available Chrome profiles (macOS only; used for --profile copy)
+// Function to get available Chrome profiles (macOS only)
 function getProfiles() {
-	if (!isDarwin) return [];
-	const chromeDir = `${process.env["HOME"]}/Library/Application Support/Google/Chrome`;
+	const chromeDir = "/Users/machine/Library/Application Support/Google/Chrome";
 	const localStatePath = `${chromeDir}/Local State`;
 	try {
 		const localState = JSON.parse(readFileSync(localStatePath, "utf8"));
@@ -50,6 +43,7 @@ function getProfiles() {
 			email: info.user_name || "",
 		}));
 	} catch (e) {
+		console.error("Could not read Chrome profiles:", e.message);
 		return [];
 	}
 }
@@ -57,7 +51,7 @@ function getProfiles() {
 // Handle --list-profiles: just print and exit (macOS only)
 if (listProfiles) {
 	if (!isDarwin) {
-		console.error("--list-profiles is only available on macOS (profile copy from local Chrome).");
+		console.error("--list-profiles is only supported on macOS");
 		process.exit(1);
 	}
 	const profiles = getProfiles();
@@ -91,17 +85,19 @@ if (process.argv[2] && process.argv[2] !== "--profile") {
 	process.exit(1);
 }
 
-// Resolve profile selection
+// Resolve profile selection (--profile is macOS-only)
 let selectedProfile = null;
 if (useProfile) {
+	if (!isDarwin) {
+		console.error("--profile is only supported on macOS. On VPS/Linux use a fresh profile.");
+		process.exit(1);
+	}
 	if (profileArg) {
 		const profiles = getProfiles();
 		const num = parseInt(profileArg, 10);
 		if (!isNaN(num) && num >= 1 && num <= profiles.length) {
-			// Numeric selection
 			selectedProfile = profiles[num - 1];
 		} else {
-			// Try to match by directory name
 			selectedProfile = profiles.find((p) => p.dir === profileArg);
 			if (!selectedProfile) {
 				console.error(`Profile not found: ${profileArg}`);
@@ -111,58 +107,76 @@ if (useProfile) {
 		}
 		console.log(`Using profile: ${selectedProfile.name}`);
 	} else {
-		// Default to "Default" profile
 		selectedProfile = { dir: "Default", name: "Default" };
 	}
 }
 
-// Kill existing Chrome/Chromium on the debugging port so we can bind
-try {
-	if (isDarwin) execSync("killall 'Google Chrome'", { stdio: "ignore" });
-	else execSync("pkill -f 'chromium.*9222' || pkill -f 'chrome.*9222' || true", { stdio: "ignore" });
-} catch {}
-
-// Wait a bit for processes to fully die
-await new Promise((r) => setTimeout(r, 1000));
-
-// Setup profile directory
-const userDataDir = `${process.env["HOME"]}/.cache/scraping`;
-execSync(`mkdir -p "${userDataDir}"`, { stdio: "ignore" });
-
-if (useProfile && isDarwin) {
-	// Sync profile with rsync (macOS only; much faster on subsequent runs)
-	const chromeDir = `${process.env["HOME"]}/Library/Application Support/Google/Chrome`;
-	execSync(`rsync -a --delete "${chromeDir}/" "${userDataDir}/"`, { stdio: "pipe" });
+const chromePath = getChromePath();
+if (!chromePath) {
+	console.error("Chrome/Chromium not found. Set CHROME_PATH or CHROMIUM_PATH, or install Chrome.");
+	process.exit(1);
 }
 
-// Build Chrome arguments. Never use --headless: OpenTable blocks headless / zero-size windows.
+// Kill existing Chrome only on macOS (avoid killing system browsers on Linux)
+if (isDarwin) {
+	try {
+		execSync("killall 'Google Chrome'", { stdio: "ignore" });
+	} catch {}
+	await new Promise((r) => setTimeout(r, 1000));
+}
+
+// On Linux without a display: start Xvfb so Chrome runs as a real (non-headless) browser with real dimensions.
+// OpenTable blocks headless and zero-size windows; Xvfb gives a real 1920x1080 "screen".
+let xvfbProcess = null;
+const xvfbDisplay = process.env.XVFB_DISPLAY || "99";
+const xvfbSize = process.env.XVFB_SIZE || "1920x1080x24";
+if (isLinux && !process.env.DISPLAY) {
+	try {
+		xvfbProcess = spawn("Xvfb", [`:${xvfbDisplay}`, "-screen", "0", xvfbSize, "-ac"], {
+			detached: true,
+			stdio: "ignore",
+			env: { ...process.env, DISPLAY: `:${xvfbDisplay}` },
+		});
+		xvfbProcess.unref();
+		await new Promise((r) => setTimeout(r, 500));
+	} catch (e) {
+		console.error("Xvfb not found. Install with: apt install xvfb (Debian/Ubuntu) or yum install xorg-x11-server-Xvfb (RHEL)");
+		process.exit(1);
+	}
+}
+
+// Setup profile directory
+execSync("mkdir -p ~/.cache/scraping", { stdio: "ignore" });
+
+if (useProfile && isDarwin) {
+	execSync(
+		'rsync -a --delete "/Users/machine/Library/Application Support/Google/Chrome/" ~/.cache/scraping/',
+		{ stdio: "pipe" },
+	);
+}
+
+// Build Chrome arguments. Do NOT use --headless; use a real window (Xvfb on VPS provides the display).
 const chromeArgs = [
 	"--remote-debugging-port=9222",
-	`--user-data-dir=${userDataDir}`,
-	// Real window size so sites (e.g. OpenTable) don't block "zero size" or headless
-	"--window-size=1920,1080",
-	// Reduce automation detection
-	"--disable-blink-features=AutomationControlled",
-	"--no-first-run",
-	"--no-default-browser-check",
+	"--no-sandbox",
+	"--disable-setuid-sandbox",
+	"--disable-dev-shm-usage",
+	"--disable-gpu",
+	`--user-data-dir=${process.env["HOME"]}/.cache/scraping`,
 ];
-// VPS/container: often needed when running as root or in Docker
-if (process.env["CHROME_NO_SANDBOX"] === "1") {
-	chromeArgs.push("--no-sandbox", "--disable-setuid-sandbox");
+
+if (isLinux) {
+	chromeArgs.push("--window-size=1920,1080");
 }
 
 if (selectedProfile) {
 	chromeArgs.push(`--profile-directory=${selectedProfile.dir}`);
 }
 
-const chromePath = getChromePath();
 const spawnEnv = { ...process.env };
-// VPS: use virtual display (Xvfb). Start Xvfb first, e.g. Xvfb :99 -screen 0 1920x1080x24 &
-if (isLinux && !spawnEnv["DISPLAY"]) {
-	spawnEnv["DISPLAY"] = ":99";
-}
+if (isLinux && !process.env.DISPLAY) spawnEnv.DISPLAY = `:${xvfbDisplay}`;
 
-// Start Chrome in background (detached so Node can exit). Headed browser, not headless.
+// Start Chrome in background (detached so Node can exit)
 spawn(chromePath, chromeArgs, {
 	detached: true,
 	stdio: "ignore",
