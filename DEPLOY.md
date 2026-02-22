@@ -42,8 +42,8 @@ echo -e '\n. "$HOME/.asdf/asdf.sh"' >> ~/.bashrc  # Add to shell profile
 
 # Install Node.js plugin and latest Node 20
 asdf plugin-add nodejs https://github.com/asdf-vm/asdf-nodejs.git
-asdf install nodejs 20.0.0       # Or latest 20.x: asdf install nodejs latest:20
-asdf global nodejs 20.0.0        # Or asdf global nodejs latest:20
+asdf install nodejs 25.6.0       # Or latest: asdf install nodejs latest
+asdf global nodejs 25.6.0        # Or asdf global nodejs latest
 
 # Optionally verify
 node -v
@@ -67,7 +67,7 @@ cp .env.example .env
 # Edit .env: VENUE_URL, DATE, TIME_*, PARTY_SIZE, PHONE_NUMBER, etc.
 ```
 
-## 3. Run on the VPS
+## 3. Run on the VPS (WE ARE HERE)
 
 **Option A – Let `start.js` start Xvfb (recommended)**  
 If `DISPLAY` is not set, `start.js` will start Xvfb and then Chrome:
@@ -79,6 +79,7 @@ node skills/puppeteer-core/start.js
 # In another terminal (or after in the same session):
 source .env && bun main.ts
 ```
+
 
 **Option B – Use `xvfb-run` yourself**  
 You can run the whole session under Xvfb:
