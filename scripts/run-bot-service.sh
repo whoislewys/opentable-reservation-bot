@@ -11,4 +11,4 @@ XVFB_PID=$!
 sleep 2
 node skills/puppeteer-core/start.js
 sleep 2
-exec pnpm exec tsx main.ts
+source .env && exec bun main.ts

@@ -67,7 +67,7 @@ cp .env.example .env
 # Edit .env: VENUE_URL, DATE, TIME_*, PARTY_SIZE, PHONE_NUMBER, etc.
 ```
 
-## 3. Run on the VPS (WE ARE HERE)
+## 3. Run on the VPS
 
 **Option A – Let `start.js` start Xvfb (recommended)**  
 If `DISPLAY` is not set, `start.js` will start Xvfb and then Chrome:
@@ -79,7 +79,6 @@ node skills/puppeteer-core/start.js
 # In another terminal (or after in the same session):
 source .env && bun main.ts
 ```
-
 
 **Option B – Use `xvfb-run` yourself**  
 You can run the whole session under Xvfb:
@@ -95,25 +94,7 @@ Optional env overrides (in `start.js`):
 - `XVFB_DISPLAY`: display number (default `99`).
 - `XVFB_SIZE`: virtual screen size (default `1920x1080x24`).
 
-## 4. One-shot script (start + main)
-
-Example wrapper so one command starts Chrome then the bot:
-
-```bash
-#!/bin/bash
-set -e
-cd /path/to/v3-handroll
-node skills/puppeteer-core/start.js
-exec pnpm exec tsx main.ts
-```
-
-Run with `xvfb-run` if you didn’t let `start.js` start Xvfb:
-
-```bash
-xvfb-run -a -s "-screen 0 1920x1080x24" ./run-bot.sh
-```
-
-## 5. systemd (optional)
+## 4. systemd (optional)
 
 Use a wrapper script so one service starts Xvfb, Chrome, then the bot:
 
@@ -130,7 +111,7 @@ XVFB_PID=$!
 sleep 2
 node skills/puppeteer-core/start.js
 sleep 2
-exec pnpm exec tsx main.ts
+exec source .env && bun main.ts
 # Optional: trap "kill $XVFB_PID" EXIT to stop Xvfb when main exits
 ```
 
