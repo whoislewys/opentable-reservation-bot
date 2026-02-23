@@ -3,7 +3,8 @@
   "private": true,
   "description": "",
   "scripts": {
-    "start": "pnpm --filter bot start",
+    "start:reservation-bot": "pnpm --filter bot start",
+    "start:time-watcher": "pnpm --filter time-watcher start",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
