@@ -2,7 +2,8 @@
 import { execSync, execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import * as readline from "node:readline/promises";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 // ── Config from env ──────────────────────────────────────────────────
 const VENUE_URL = env("VENUE_URL");
@@ -11,7 +12,8 @@ const TIME_EARLIEST = env("TIME_EARLIEST"); // HH:MM
 const TIME_LATEST = env("TIME_LATEST");
 const PARTY_SIZE = Number(env("PARTY_SIZE"));
 
-const SKILLS = join(process.cwd(), "skills", "puppeteer-core");
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const SKILLS = join(__dirname, "..", "..", "packages", "skills", "puppeteer-core");
 
 // Validate date is not in the past
 const today = new Date();

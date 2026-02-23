@@ -22,7 +22,7 @@ pnpm install
 ## Run
 
 ```bash
-source .env && bun main.ts
+source .env && pnpm run start
 ```
 
 ## Flow

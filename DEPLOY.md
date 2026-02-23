@@ -13,7 +13,7 @@ So on a VPS you get: real Chrome + real viewport size, without a physical monito
 ## VPS requirements
 
 - **OS**: Linux (e.g. Debian, Ubuntu).
-- **Node**: v18+ (or Bun; project uses `tsx` for `main.ts`).
+- **Node**: v18+ (or Bun; project uses `tsx` for the bot app in `apps/bot`).
 - **Chrome or Chromium**: Must be a real build (not headless-only).
 - **Xvfb**: For virtual display when no DISPLAY is set.
 
@@ -73,19 +73,19 @@ cp .env.example .env
 If `DISPLAY` is not set, `start.js` will start Xvfb and then Chrome:
 
 ```bash
-node skills/puppeteer-core/start.js
+node packages/skills/puppeteer-core/start.js
 # Chrome is now on :9222 with a 1920x1080 virtual display
 
 # In another terminal (or after in the same session):
-source .env && bun main.ts
+source .env && pnpm run start
 ```
 
 **Option B – Use `xvfb-run` yourself**  
 You can run the whole session under Xvfb:
 
 ```bash
-xvfb-run -a -s "-screen 0 1920x1080x24" node skills/puppeteer-core/start.js
-pnpm exec tsx main.ts
+xvfb-run -a -s "-screen 0 1920x1080x24" node packages/skills/puppeteer-core/start.js
+source .env && pnpm run start
 ```
 
 Optional env overrides (in `start.js`):
@@ -109,9 +109,9 @@ export XVFB_DISPLAY=99
 Xvfb :99 -screen 0 1920x1080x24 -ac &
 XVFB_PID=$!
 sleep 2
-node skills/puppeteer-core/start.js
+node packages/skills/puppeteer-core/start.js
 sleep 2
-exec source .env && bun main.ts
+source .env && exec pnpm run start
 # Optional: trap "kill $XVFB_PID" EXIT to stop Xvfb when main exits
 ```
 

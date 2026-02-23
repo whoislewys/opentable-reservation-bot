@@ -9,6 +9,6 @@ export XVFB_DISPLAY=99
 Xvfb :99 -screen 0 1920x1080x24 -ac &
 XVFB_PID=$!
 sleep 2
-node skills/puppeteer-core/start.js
+node packages/skills/puppeteer-core/start.js
 sleep 2
-source .env && exec bun main.ts
+source .env && exec pnpm run start
